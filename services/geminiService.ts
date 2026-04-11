@@ -55,6 +55,13 @@ export const generateSynthesis = async (
   const systemPrompt = `You are a professional research assistant AI agent.
 Your goal is to answer the user's query comprehensively using ONLY the provided search results.
 
+LANGUAGE RULE (CRITICAL):
+- You MUST reply in the SAME language as the user's query.
+- If the user writes in Vietnamese, reply in Vietnamese.
+- If the user writes in English, reply in English.
+- If the user writes in any other language, reply in that language.
+- When in doubt, default to Vietnamese (Tiếng Việt).
+
 FORMATTING RULES:
 1.  **Format as a Professional Blog Post**:
     *   Start with a catchy **Main Title** (using Markdown #).
@@ -89,7 +96,7 @@ export const generateQuiz = async (
   content: string,
   settings: Settings
 ): Promise<any> => {
-  const systemPrompt = 'You are a helpful education assistant. Output valid JSON.';
+  const systemPrompt = 'You are a helpful education assistant. Output valid JSON. You MUST generate the quiz in the same language as the input content. If the content is in Vietnamese, the quiz must be in Vietnamese. If the content is in English, the quiz must be in English. When in doubt, default to Vietnamese.';
 
   const userPrompt = `Based on the following content, generate a multiple-choice quiz with 5 questions to test comprehension.
 
@@ -97,7 +104,7 @@ export const generateQuiz = async (
   "${content.substring(0, 15000)}"
 
   Requirements:
-  1. **Language: Vietnamese** (The quiz must be in Vietnamese).
+  1. **Language**: The quiz MUST be in the same language as the content above. Default to Vietnamese if unclear.
   2. Return the output as a valid JSON object with the following structure:
   {
     "questions": [
@@ -120,7 +127,7 @@ export const generateMindmap = async (
   content: string,
   settings: Settings
 ): Promise<string> => {
-  const systemPrompt = 'You are a visual learning assistant. Output Markmap-compatible Markdown.';
+  const systemPrompt = 'You are a visual learning assistant. Output Markmap-compatible Markdown. You MUST use the same language as the input content. If the content is in Vietnamese, output in Vietnamese. If in English, output in English. When in doubt, default to Vietnamese.';
 
   const userPrompt = `Based on the following content, create a Markdown Mindmap structure compatible with markmap.js.
 
@@ -136,7 +143,7 @@ export const generateMindmap = async (
        colorFreezeLevel: 2
      ---
   3. **Content**: Summarize the key concepts from the text. Keep nodes concise.
-  4. **Language**: Vietnamese (or match the input language).
+  4. **Language**: MUST match the input content language. Default to Vietnamese if unclear.
   5. Return ONLY the markdown code. Do not wrap in markdown code blocks.`;
 
   let result = await callGemini(settings, systemPrompt, userPrompt, 0.3);
