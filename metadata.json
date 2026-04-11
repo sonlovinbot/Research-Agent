@@ -1,0 +1,5 @@
+{
+  "name": "Research Agent Pro",
+  "description": "A Perplexity-style research assistant that searches the web via Serper API and synthesizes answers using OpenAI.",
+  "requestFramePermissions": []
+}
