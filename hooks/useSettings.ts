@@ -1,82 +1,44 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Settings } from '../types';
 import { DEFAULT_SETTINGS } from '../constants';
-import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 
-const API_KEYS_STORAGE = 'research_agent_api_keys';
+// All settings (including API keys) are stored in localStorage, scoped per user.
+const settingsKey = (userId: string) => `research_agent_settings_${userId}`;
 
-const loadLocalKeys = (): { geminiKey: string; serperKey: string } => {
+const loadSettings = (userId: string): Settings => {
   try {
-    const raw = localStorage.getItem(API_KEYS_STORAGE);
-    return raw ? JSON.parse(raw) : { geminiKey: '', serperKey: '' };
+    const raw = localStorage.getItem(settingsKey(userId));
+    return raw ? { ...DEFAULT_SETTINGS, ...JSON.parse(raw) } : DEFAULT_SETTINGS;
   } catch {
-    return { geminiKey: '', serperKey: '' };
+    return DEFAULT_SETTINGS;
   }
-};
-
-const saveLocalKeys = (geminiKey: string, serperKey: string) => {
-  localStorage.setItem(API_KEYS_STORAGE, JSON.stringify({ geminiKey, serperKey }));
 };
 
 export const useSettings = () => {
   const { user } = useAuth();
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
-  const [loading, setLoading] = useState(true);
+  // Tracks which user's settings are currently in `settings`. Derived loading
+  // below stays true until the active user's settings are committed, so consumers
+  // never see another user's (or default) settings during the transition.
+  const [loadedFor, setLoadedFor] = useState<string | null>(null);
 
-  // Load settings on auth
   useEffect(() => {
     if (!user) {
       setSettings(DEFAULT_SETTINGS);
-      setLoading(false);
+      setLoadedFor(null);
       return;
     }
-
-    const load = async () => {
-      const keys = loadLocalKeys();
-
-      const { data } = await supabase
-        .from('user_settings')
-        .select('model, temperature, country, language')
-        .eq('user_id', user.id)
-        .single();
-
-      if (data) {
-        setSettings({
-          geminiKey: keys.geminiKey,
-          serperKey: keys.serperKey,
-          model: data.model,
-          temperature: Number(data.temperature),
-          country: data.country,
-          language: data.language,
-        });
-      } else {
-        setSettings({ ...DEFAULT_SETTINGS, ...keys });
-      }
-      setLoading(false);
-    };
-
-    load();
+    setSettings(loadSettings(user.id));
+    setLoadedFor(user.id);
   }, [user]);
+
+  const loading = user ? loadedFor !== user.id : false;
 
   const saveSettings = useCallback(async (newSettings: Settings) => {
     setSettings(newSettings);
-
-    // API keys stay local
-    saveLocalKeys(newSettings.geminiKey, newSettings.serperKey);
-
     if (!user) return;
-
-    // Non-secret settings go to Supabase
-    await supabase
-      .from('user_settings')
-      .upsert({
-        user_id: user.id,
-        model: newSettings.model,
-        temperature: newSettings.temperature,
-        country: newSettings.country,
-        language: newSettings.language,
-      }, { onConflict: 'user_id' });
+    localStorage.setItem(settingsKey(user.id), JSON.stringify(newSettings));
   }, [user]);
 
   return { settings, saveSettings, loading };

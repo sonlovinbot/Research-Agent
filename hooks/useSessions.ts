@@ -1,36 +1,39 @@
 import { useState, useEffect, useCallback } from 'react';
 import { ChatSession } from '../types';
-import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
+import { messagesKey } from './storage';
+
+const newId = (): string =>
+  (crypto?.randomUUID?.() ?? `id-${Date.now()}-${Math.floor(Math.random() * 1e6)}`);
+
+const sessionsKey = (userId: string) => `research_agent_sessions_${userId}`;
+
+const loadSessions = (userId: string): ChatSession[] => {
+  try {
+    const raw = localStorage.getItem(sessionsKey(userId));
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+};
 
 export const useSessions = () => {
   const { user } = useAuth();
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Load session list (no messages)
+  const persist = useCallback((next: ChatSession[]) => {
+    if (user) localStorage.setItem(sessionsKey(user.id), JSON.stringify(next));
+  }, [user]);
+
   const fetchSessions = useCallback(async () => {
     if (!user) {
       setSessions([]);
       setLoading(false);
       return;
     }
-
-    const { data } = await supabase
-      .from('chat_sessions')
-      .select('id, title, created_at, updated_at')
-      .eq('user_id', user.id)
-      .order('updated_at', { ascending: false });
-
-    if (data) {
-      setSessions(data.map(s => ({
-        id: s.id,
-        title: s.title,
-        messages: [], // not loaded here
-        createdAt: new Date(s.created_at).getTime(),
-        updatedAt: new Date(s.updated_at).getTime(),
-      })));
-    }
+    const list = loadSessions(user.id).sort((a, b) => b.updatedAt - a.updatedAt);
+    setSessions(list);
     setLoading(false);
   }, [user]);
 
@@ -40,56 +43,42 @@ export const useSessions = () => {
 
   const createSession = useCallback(async (title: string): Promise<string | null> => {
     if (!user) return null;
-
-    const { data, error } = await supabase
-      .from('chat_sessions')
-      .insert({ user_id: user.id, title })
-      .select('id')
-      .single();
-
-    if (error || !data) return null;
-
-    setSessions(prev => [{
-      id: data.id,
-      title,
-      messages: [],
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    }, ...prev]);
-
-    return data.id;
-  }, [user]);
+    const now = Date.now();
+    const session: ChatSession = { id: newId(), title, messages: [], createdAt: now, updatedAt: now };
+    setSessions(prev => {
+      const next = [session, ...prev];
+      persist(next);
+      return next;
+    });
+    return session.id;
+  }, [user, persist]);
 
   const renameSession = useCallback(async (id: string, newTitle: string) => {
-    await supabase
-      .from('chat_sessions')
-      .update({ title: newTitle })
-      .eq('id', id);
-
-    setSessions(prev => prev.map(s =>
-      s.id === id ? { ...s, title: newTitle, updatedAt: Date.now() } : s
-    ));
-  }, []);
+    setSessions(prev => {
+      const next = prev.map(s => s.id === id ? { ...s, title: newTitle, updatedAt: Date.now() } : s);
+      persist(next);
+      return next;
+    });
+  }, [persist]);
 
   const deleteSession = useCallback(async (id: string) => {
-    await supabase
-      .from('chat_sessions')
-      .delete()
-      .eq('id', id);
-
-    setSessions(prev => prev.filter(s => s.id !== id));
-  }, []);
+    localStorage.removeItem(messagesKey(id));
+    setSessions(prev => {
+      const next = prev.filter(s => s.id !== id);
+      persist(next);
+      return next;
+    });
+  }, [persist]);
 
   const touchSession = useCallback(async (id: string) => {
-    await supabase
-      .from('chat_sessions')
-      .update({ updated_at: new Date().toISOString() })
-      .eq('id', id);
-
-    setSessions(prev => prev.map(s =>
-      s.id === id ? { ...s, updatedAt: Date.now() } : s
-    ));
-  }, []);
+    setSessions(prev => {
+      const next = prev
+        .map(s => s.id === id ? { ...s, updatedAt: Date.now() } : s)
+        .sort((a, b) => b.updatedAt - a.updatedAt);
+      persist(next);
+      return next;
+    });
+  }, [persist]);
 
   return { sessions, loading, createSession, renameSession, deleteSession, touchSession, refetch: fetchSessions };
 };

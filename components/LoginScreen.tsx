@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Eye, EyeOff, Mail, Lock, ArrowRight, Sparkles, UserPlus, LogIn } from 'lucide-react';
-import { useAuth } from '../lib/auth';
+import { Eye, EyeOff, User as UserIcon, Lock, ArrowRight, Sparkles, UserPlus, LogIn } from 'lucide-react';
+import { useAuth, DEMO_USERNAME, DEMO_PASSWORD } from '../lib/auth';
 
 export const LoginScreen: React.FC = () => {
   const { signIn, signUp } = useAuth();
@@ -18,10 +18,6 @@ export const LoginScreen: React.FC = () => {
       setError('Please fill in all fields.');
       return;
     }
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters.');
-      return;
-    }
 
     setIsLoading(true);
     setError('');
@@ -32,7 +28,7 @@ export const LoginScreen: React.FC = () => {
       if (error) {
         setError(error.message);
       } else {
-        setSuccessMsg('Account created! Check your email to confirm, then sign in.');
+        setSuccessMsg('Account created! You can sign in now.');
         setMode('signin');
       }
     } else {
@@ -73,22 +69,27 @@ export const LoginScreen: React.FC = () => {
 
           {/* Form */}
           <div className="p-8">
+            {mode === 'signin' && (
+              <div className="mb-5 text-center text-xs px-3 py-2 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900/50">
+                Demo account — username <span className="font-semibold">{DEMO_USERNAME}</span> / password <span className="font-semibold">{DEMO_PASSWORD}</span>
+              </div>
+            )}
             <form onSubmit={handleSubmit} className="space-y-5">
-              {/* Email */}
+              {/* Username */}
               <div className="space-y-2">
                 <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider ml-1">
-                  Email
+                  Username
                 </label>
                 <div className="relative group">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400 group-focus-within:text-emerald-500 transition-colors">
-                    <Mail size={18} />
+                    <UserIcon size={18} />
                   </div>
                   <input
-                    type="email"
+                    type="text"
                     value={email}
                     onChange={(e) => { setEmail(e.target.value); setError(''); }}
                     className="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent dark:text-white placeholder-gray-400 transition-all outline-none"
-                    placeholder="you@example.com"
+                    placeholder="admin"
                   />
                 </div>
               </div>
@@ -107,7 +108,7 @@ export const LoginScreen: React.FC = () => {
                     value={password}
                     onChange={(e) => { setPassword(e.target.value); setError(''); }}
                     className={`w-full pl-10 pr-12 py-3 bg-gray-50 dark:bg-gray-900 border ${error ? 'border-red-500' : 'border-gray-200 dark:border-gray-600'} rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent dark:text-white placeholder-gray-400 transition-all outline-none`}
-                    placeholder={mode === 'signup' ? 'At least 6 characters' : 'Enter password'}
+                    placeholder={mode === 'signup' ? 'Choose a password' : 'Enter password'}
                   />
                   <button
                     type="button"
@@ -165,7 +166,7 @@ export const LoginScreen: React.FC = () => {
 
         </div>
         <p className="text-center text-xs text-gray-400 dark:text-gray-600 mt-8">
-          Secured by Supabase • Research Agent Pro
+          Demo mode • Local storage • Research Agent Pro
         </p>
       </div>
     </div>
